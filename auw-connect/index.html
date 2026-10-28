@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#6d1d3d">
+  <title>AUW Connect — Student & Teacher Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="AUW Connect home">
+      <span class="brand-mark">A</span>
+      <span><strong>AUW CONNECT</strong><small>Learn · Share · Thrive</small></span>
+    </a>
+    <div class="topbar-right">
+      <span class="secure-label"><span class="status-dot"></span> University community</span>
+      <button id="signOutBtn" class="button button-ghost hidden">Sign out</button>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section id="authView" class="auth-layout">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="eyebrow-line"></span> YOUR AUW COMMUNITY, CONNECTED</div>
+        <h1>Make room for<br><em>every possibility.</em></h1>
+        <p class="hero-lede">One trusted space for appointments, academic support, meaningful collaboration, and everyday campus life.</p>
+        <div class="hero-points">
+          <div><span class="point-icon">01</span><span><b>Academic connection</b><small>Book teacher appointments and follow your progress.</small></span></div>
+          <div><span class="point-icon">02</span><span><b>Community exchange</b><small>Share resources and help each other thrive.</small></span></div>
+          <div><span class="point-icon">03</span><span><b>Designed for trust</b><small>Access is limited to pre-approved university accounts.</small></span></div>
+        </div>
+        <p class="hero-note">An independent student-built concept. Not an official AUW service.</p>
+      </div>
+
+      <div class="auth-card">
+        <div class="auth-card-top">
+          <span class="mini-label">WELCOME TO AUW CONNECT</span>
+          <h2 id="authTitle">Welcome back</h2>
+          <p id="authSubtitle">Sign in with your approved university email.</p>
+        </div>
+        <div class="auth-tabs" role="tablist">
+          <button class="auth-tab active" id="loginTab" type="button">Sign in</button>
+          <button class="auth-tab" id="registerTab" type="button">Create account</button>
+        </div>
+        <form id="authForm">
+          <label for="fullName" id="nameLabel" class="hidden">Full name</label>
+          <input id="fullName" name="fullName" autocomplete="name" placeholder="Full name" class="hidden">
+          <label for="email">University email</label>
+          <input id="email" name="email" type="email" autocomplete="username" placeholder="you@auw.edu.bd" required>
+          <label for="password">Password</label>
+          <div class="password-wrap"><input id="password" name="password" type="password" autocomplete="current-password" minlength="8" placeholder="At least 8 characters" required><button type="button" id="togglePassword" class="password-toggle" aria-label="Show password">Show</button></div>
+          <div id="authHint" class="form-hint">Your account must be approved by the platform administrator.</div>
+          <button id="authSubmit" class="button button-primary button-wide" type="submit">Sign in <span>→</span></button>
+          <p id="authMessage" class="message" role="status" aria-live="polite"></p>
+        </form>
+        <div class="auth-foot"><span class="lock-icon">⌑</span> Your role and access are controlled by administrator approval.</div>
+      </div>
+    </section>
+
+    <section id="appView" class="app-layout hidden">
+      <aside class="sidebar">
+        <div class="profile-mini">
+          <div id="avatar" class="avatar">A</div>
+          <div><b id="profileName">AUW Member</b><small id="profileRole">Community member</small></div>
+        </div>
+        <nav id="mainNav" class="main-nav" aria-label="Main navigation">
+          <button class="nav-item active" data-view="overview"><span>⌂</span> Overview</button>
+          <button class="nav-item" data-view="appointments"><span>▦</span> Appointments</button>
+          <button class="nav-item" data-view="progress"><span>◷</span> Academic progress</button>
+          <button class="nav-item" data-view="messages"><span>▤</span> Messages</button>
+          <button class="nav-item" data-view="community"><span>◇</span> Student exchange</button>
+          <button class="nav-item" data-view="faculty"><span>✳</span> Faculty circle</button>
+          <button class="nav-item admin-only hidden" data-view="admin"><span>⚙</span> Administration</button>
+        </nav>
+        <div class="sidebar-bottom"><div class="sidebar-help"><span>✦</span><p><b>Small steps matter.</b><small>Ask for support. Offer it, too.</small></p></div><small class="sidebar-version">AUW CONNECT · PILOT</small></div>
+      </aside>
+
+      <div class="workspace">
+        <div class="workspace-heading">
+          <div><div class="eyebrow"><span class="eyebrow-line"></span> YOUR SPACE</div><h1 id="viewTitle">Overview</h1><p id="viewSubtitle">A thoughtful space for your university journey.</p></div>
+          <div class="date-chip"><span class="date-spark">✦</span><span id="todayLabel">Your campus dashboard</span></div>
+        </div>
+        <div id="appMessage" class="message global-message" role="status" aria-live="polite"></div>
+
+        <section id="view-overview" class="view-panel">
+          <div class="welcome-banner"><div><span class="banner-label">A NEW DAY TO GROW</span><h2 id="welcomeName">Welcome back.</h2><p>Your next step doesn't have to be a big one.</p></div><div class="banner-art" aria-hidden="true"><span class="art-circle"></span><span class="art-leaf">✳</span><span class="art-star">✦</span></div></div>
+          <div class="stats-grid">
+            <article class="stat-card"><div class="stat-top"><span>My appointment</span><span class="stat-icon">▦</span></div><strong id="statBooking">—</strong><small id="statBookingNote">Your next academic connection</small></article>
+            <article class="stat-card"><div class="stat-top"><span>Academic progress</span><span class="stat-icon">↗</span></div><strong id="statProgress">—</strong><small>Based on feedback shared with you</small></article>
+            <article class="stat-card"><div class="stat-top"><span>Community</span><span class="stat-icon">◇</span></div><strong id="statCommunity">—</strong><small>Resources shared by your peers</small></article>
+          </div>
+          <div class="content-grid">
+            <article class="panel-card"><div class="section-heading"><div><span class="mini-label">GET STARTED</span><h3>Your next steps</h3></div><span class="heading-symbol">✦</span></div><div class="quick-links">
+              <button data-jump="appointments" class="quick-link"><span class="quick-icon plum">▦</span><span><b>Book a teacher</b><small>Find a time that works for you</small></span><span class="quick-arrow">→</span></button>
+              <button data-jump="progress" class="quick-link"><span class="quick-icon gold">↗</span><span><b>Review your progress</b><small>See feedback and support areas</small></span><span class="quick-arrow">→</span></button>
+              <button data-jump="community" class="quick-link"><span class="quick-icon green">◇</span><span><b>Explore student exchange</b><small>Share, lend, borrow, and connect</small></span><span class="quick-arrow">→</span></button>
+            </div></article>
+            <article class="panel-card campus-note"><span class="note-ornament">“</span><span class="mini-label">A COMMUNITY PROMISE</span><h3>Make support<br>part of the culture.</h3><p>Ask questions without fear. Share what you know. Respect every person's privacy, time, and dignity.</p><div class="note-signoff">With care, AUW Connect <span>✦</span></div></article>
+          </div>
+        </section>
+
+        <section id="view-appointments" class="view-panel hidden">
+          <div class="section-intro"><div><span class="mini-label">ACADEMIC SUPPORT</span><h2>Find your time to connect</h2><p>Each appointment session has up to 20 seats. A reservation is personal and cannot be taken by another student.</p></div></div>
+          <div class="filter-bar"><label>Student schedule<select id="programFilter"><option value="all">All schedules</option><option value="pathways">Pathways</option><option value="foundation">Foundation</option><option value="undergraduate">Undergraduate</option></select></label><label>Teacher<select id="teacherFilter"><option value="all">All teachers</option></select></label><button id="refreshSlots" class="button button-secondary">Refresh sessions ↻</button></div>
+          <div id="myBookingBox" class="my-booking-box hidden"></div>
+          <div id="slotsList" class="slots-list"><div class="empty-state">Sign in to load available appointments.</div></div>
+          <div id="teacherRequestBox" class="panel-card request-card"><div><span class="mini-label">NEED A DIFFERENT KIND OF SUPPORT?</span><h3>Request a teacher</h3><p>Explain what you need help with so the team can guide you to an appropriate teacher.</p></div><form id="teacherRequestForm" class="request-form"><label>Reason for your request<textarea id="teacherRequestReason" required minlength="10" maxlength="800" placeholder="Briefly explain the topic or support you need…"></textarea></label><button class="button button-primary" type="submit">Send request</button></form></div>
+        </section>
+
+        <section id="view-progress" class="view-panel hidden">
+          <div class="section-intro"><div><span class="mini-label">LEARNING JOURNEY</span><h2>Progress with purpose</h2><p>Feedback is here to guide support, not to label anyone.</p></div></div>
+          <div id="progressSummary" class="progress-summary"><div class="empty-state">Your shared academic feedback will appear here.</div></div>
+          <div class="panel-card"><div class="section-heading"><div><span class="mini-label">PERSONAL FEEDBACK</span><h3>Feedback and next steps</h3></div></div><div id="feedbackList" class="feedback-list"><div class="empty-state">No feedback has been shared yet.</div></div></div>
+          <div id="teacherGradeBox" class="panel-card teacher-only hidden"><div class="section-heading"><div><span class="mini-label">TEACHER WORKSPACE</span><h3>Share student feedback</h3></div></div><form id="gradeForm" class="form-grid"><label>Student email<input id="gradeStudentEmail" type="email" required placeholder="approved student email"></label><label>Course / subject<input id="gradeCourse" required maxlength="100" placeholder="e.g. English"></label><label>Score (%)<input id="gradeScore" type="number" min="0" max="100" required></label><label>Support area<select id="gradeSupport"><option value="none">No specific support area</option><option value="concepts">Concept understanding</option><option value="practice">More practice</option><option value="confidence">Confidence / participation</option><option value="time">Time management</option><option value="language">Language support</option></select></label><label class="span-two">Constructive feedback<textarea id="gradeFeedback" required minlength="5" maxlength="1200" placeholder="Share strengths, a next step, and any suggested support…"></textarea></label><button class="button button-primary" type="submit">Save feedback</button></form></div>
+        </section>
+
+        <section id="view-messages" class="view-panel hidden">
+          <div class="section-intro"><div><span class="mini-label">STAY CONNECTED</span><h2>Messages & discussion</h2><p>Use university accounts to connect without sharing personal phone numbers.</p></div></div>
+          <div class="message-layout">
+            <div class="panel-card message-compose"><span class="mini-label">START A CONVERSATION</span><form id="chatCreateForm"><label>Conversation type<select id="chatType"><option value="private">Private chat</option><option value="group">Group discussion</option><option value="faculty">Faculty circle (teachers only)</option></select></label><label>Conversation title<input id="chatTitle" required maxlength="100" placeholder="e.g. English study group"></label><label>Member emails<input id="chatMembers" required placeholder="email1@auw.edu.bd, email2@auw.edu.bd"></label><p class="form-hint">Only approved users can be added. Keep sensitive academic or personal information out of group chats.</p><button class="button button-primary" type="submit">Create conversation</button></form><div class="section-heading compact"><h3>Your conversations</h3></div><div id="chatList" class="chat-list"><div class="empty-state">No conversations yet.</div></div></div>
+            <div class="panel-card chat-panel"><div id="chatPlaceholder" class="chat-placeholder"><span>▤</span><h3>Your conversations, in one place</h3><p>Select a conversation to read and send messages.</p></div><div id="activeChat" class="hidden"><div class="chat-header"><div><span class="mini-label">CONVERSATION</span><h3 id="activeChatTitle">Discussion</h3></div><span id="activeChatType" class="pill">Group</span></div><div id="chatMessages" class="chat-messages"></div><form id="sendMessageForm" class="send-message-form"><input id="messageInput" maxlength="2000" required placeholder="Write a respectful message…"><button class="button button-primary" type="submit" aria-label="Send message">Send ↗</button></form></div></div>
+          </div>
+        </section>
+
+        <section id="view-community" class="view-panel hidden">
+          <div class="section-intro"><div><span class="mini-label">SHARE WHAT YOU CAN</span><h2>Student exchange</h2><p>Notes, food, crafts, jewellery, clothing, beauty kits, and everyday dorm essentials.</p></div><button id="newListingToggle" class="button button-primary">+ Add a listing</button></div>
+          <div id="listingFormCard" class="panel-card hidden"><div class="section-heading"><div><span class="mini-label">COMMUNITY MARKETPLACE</span><h3>Create a listing</h3></div></div><form id="listingForm" class="form-grid"><label>Listing title<input id="listingTitle" required maxlength="100" placeholder="e.g. Lab coat to lend"></label><label>Category<select id="listingCategory"><option>Study notes</option><option>Food</option><option>Handicrafts & jewellery</option><option>Clothing to borrow</option><option>Beauty kit</option><option>Dorm essentials</option><option>Other</option></select></label><label>Offer type<select id="listingType"><option>Sharing</option><option>For sale</option><option>Borrow / lend</option><option>Exchange</option><option>Help wanted</option></select></label><label>Price (optional)<input id="listingPrice" type="number" min="0" step="1" placeholder="0"></label><label class="span-two">Details<textarea id="listingDetails" required minlength="5" maxlength="1000" placeholder="Describe condition, availability, and how to arrange a handover…"></textarea></label><button class="button button-primary" type="submit">Publish listing</button></form><p class="form-hint">Do not post bank details, passwords, sensitive personal data, or requests to send money to unknown people.</p></div>
+          <div class="filter-bar"><label>Category<select id="listingFilter"><option value="all">All categories</option><option>Study notes</option><option>Food</option><option>Handicrafts & jewellery</option><option>Clothing to borrow</option><option>Beauty kit</option><option>Dorm essentials</option><option>Other</option></select></label><button id="refreshListings" class="button button-secondary">Refresh listings ↻</button></div>
+          <div id="listingGrid" class="listing-grid"><div class="empty-state">Sign in to see student listings.</div></div>
+        </section>
+
+        <section id="view-faculty" class="view-panel hidden">
+          <div class="section-intro"><div><span class="mini-label">SHARED PRACTICE</span><h2>Faculty circle</h2><p>A dedicated space for teachers to exchange teaching ideas, classroom activities, and student-support approaches.</p></div></div>
+          <div class="faculty-layout"><div class="panel-card"><span class="mini-label">START A COLLABORATION</span><h3>Bring an idea to the circle</h3><form id="facultyPostForm"><label>Topic<input id="facultyTopic" required maxlength="120" placeholder="e.g. Making group work more accessible"></label><label>Your idea<textarea id="facultyBody" required minlength="10" maxlength="2000" placeholder="Share an activity, challenge, or approach colleagues can build on…"></textarea></label><button class="button button-primary" type="submit">Share with teachers</button></form></div><div class="panel-card"><div class="section-heading"><div><span class="mini-label">TEACHER COMMUNITY</span><h3>Shared ideas</h3></div></div><div id="facultyFeed" class="faculty-feed"><div class="empty-state">Teacher ideas will appear here.</div></div></div></div>
+        </section>
+
+        <section id="view-admin" class="view-panel hidden">
+          <div class="section-intro"><div><span class="mini-label">PLATFORM CONTROL</span><h2>Administration</h2><p>Manage approved accounts and appointment sessions. Only designated administrators can access this area.</p></div></div>
+          <div class="admin-grid">
+            <div class="panel-card"><div class="section-heading"><div><span class="mini-label">ACCESS CONTROL</span><h3>Approve an account</h3></div></div><form id="allowlistForm"><label>University email<input id="approvedEmail" type="email" required placeholder="person@auw.edu.bd"></label><label>Role<select id="approvedRole"><option value="student">Student</option><option value="teacher">Teacher</option><option value="admin">Admin (console setup only)</option></select></label><label>Schedule / programme<select id="approvedProgram"><option value="pathways">Pathways</option><option value="foundation">Foundation</option><option value="undergraduate">Undergraduate</option><option value="staff">Staff</option></select></label><button class="button button-primary" type="submit">Add approved email</button><p class="form-hint">For safety, this dashboard cannot grant admin access. Add the first admin in the Firebase Console.</p></form><div class="section-heading compact"><h3>Approved accounts</h3></div><div id="approvedList" class="approved-list"></div></div>
+            <div class="panel-card"><div class="section-heading"><div><span class="mini-label">APPOINTMENT SCHEDULING</span><h3>Create a session</h3></div></div><form id="slotForm"><label>Teacher email<input id="slotTeacherEmail" type="email" required placeholder="teacher@auw.edu.bd"></label><label>Schedule<select id="slotProgram"><option value="pathways">Pathways</option><option value="foundation">Foundation</option><option value="undergraduate">Undergraduate</option></select></label><label>Session title<input id="slotTitle" required maxlength="100" placeholder="e.g. English support hours"></label><label>Date and start time<input id="slotStart" type="datetime-local" required></label><label>Duration<select id="slotDuration"><option value="15">15 minutes</option><option value="20">20 minutes</option><option value="30" selected>30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option></select></label><label>Booking deadline<input id="slotDeadline" type="datetime-local" required></label><label>Cancellation deadline<input id="slotCancelDeadline" type="datetime-local" required></label><button class="button button-primary" type="submit">Publish 20-seat session</button></form></div>
+          </div>
+          <div class="panel-card admin-slots"><div class="section-heading"><div><span class="mini-label">CURRENT SCHEDULE</span><h3>Manage sessions</h3></div><button id="refreshAdmin" class="button button-secondary">Refresh ↻</button></div><div id="adminSlotsList" class="table-wrap"></div></div>
+        </section>
+
+        <footer class="workspace-footer"><span>AUW CONNECT <span class="footer-dot">✦</span> Built for a more connected campus</span><span>Privacy · Respect · Belonging</span></footer>
+      </div>
+    </section>
+  </main>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
