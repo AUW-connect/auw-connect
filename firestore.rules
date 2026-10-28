@@ -1,0 +1,165 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function myUserPath() { return /databases/$(database)/documents/users/$(request.auth.uid); }
+    function hasProfile() { return signedIn() && exists(myUserPath()); }
+    function me() { return get(myUserPath()).data; }
+    function isAdmin() { return hasProfile() && me().role == "admin" && me().active != false; }
+    function isTeacher() { return hasProfile() && (me().role == "teacher" || me().role == "admin") && me().active != false; }
+    function isStudent() { return hasProfile() && me().role == "student" && me().active != false; }
+    function activeApproved(email) {
+      return exists(/databases/$(database)/documents/approvedEmails/$(email)) &&
+        get(/databases/$(database)/documents/approvedEmails/$(email)).data.enabled != false;
+    }
+    function approvedRole(email) {
+      return get(/databases/$(database)/documents/approvedEmails/$(email)).data.role;
+    }
+
+    // Each user can read their own allowlist entry only. Admins manage student/teacher approvals.
+    match /approvedEmails/{email} {
+      allow get: if signedIn() && request.auth.token.email == email || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isAdmin() &&
+        request.resource.data.role in ["student", "teacher"] &&
+        request.resource.data.enabled == true &&
+        request.resource.data.program in ["pathways", "foundation", "undergraduate", "staff"];
+      allow update: if isAdmin() &&
+        resource.data.role != "admin" &&
+        request.resource.data.role in ["student", "teacher"] &&
+        request.resource.data.program in ["pathways", "foundation", "undergraduate", "staff"];
+      allow delete: if isAdmin() && resource.data.role != "admin";
+    }
+
+    match /users/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || isAdmin() ||
+        (hasProfile() && (me().role == "teacher" || me().role == "admin")));
+      allow list: if isAdmin() || (hasProfile() && (me().role == "teacher" || me().role == "admin"));
+      allow create: if signedIn() && request.auth.uid == uid &&
+        request.resource.data.uid == uid &&
+        request.resource.data.email == request.auth.token.email &&
+        activeApproved(request.auth.token.email) &&
+        request.resource.data.role == approvedRole(request.auth.token.email) &&
+        request.resource.data.role in ["student", "teacher", "admin"] &&
+        request.resource.data.active == true;
+      allow update: if isAdmin() &&
+        request.resource.data.role in ["student", "teacher", "admin"];
+      allow delete: if isAdmin();
+    }
+
+    match /slots/{slotId} {
+      allow read: if hasProfile();
+      allow create: if isAdmin() &&
+        request.resource.data.capacity == 20 &&
+        request.resource.data.bookedUids is list &&
+        request.resource.data.bookedUids.size() == 0;
+      // A student may only add/remove their own UID, and reservation changes must be in the same transaction.
+      allow update: if isAdmin() ||
+        (hasProfile() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["bookedUids", "updatedAt"]) &&
+          request.resource.data.bookedUids is list &&
+          request.resource.data.bookedUids.size() <= 20 &&
+          (
+            (request.auth.uid in request.resource.data.bookedUids &&
+             !(request.auth.uid in resource.data.bookedUids) &&
+             request.resource.data.bookedUids.size() == resource.data.bookedUids.size() + 1 &&
+             getAfter(/databases/$(database)/documents/reservations/$(request.auth.uid)).data.slotId == slotId) ||
+            (!(request.auth.uid in request.resource.data.bookedUids) &&
+             request.auth.uid in resource.data.bookedUids &&
+             request.resource.data.bookedUids.size() == resource.data.bookedUids.size() - 1 &&
+             !existsAfter(/databases/$(database)/documents/reservations/$(request.auth.uid)))
+          ));
+      allow delete: if isAdmin();
+    }
+
+    match /reservations/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin() ||
+        (isTeacher() && resource.data.teacherUid == request.auth.uid));
+      allow create: if signedIn() && request.auth.uid == uid && isStudent() &&
+        !exists(/databases/$(database)/documents/reservations/$(uid)) &&
+        request.resource.data.uid == uid &&
+        request.resource.data.studentEmail == request.auth.token.email &&
+        request.resource.data.slotId is string &&
+        existsAfter(/databases/$(database)/documents/slots/$(request.resource.data.slotId)) &&
+        request.resource.data.slotId == getAfter(/databases/$(database)/documents/slots/$(request.resource.data.slotId)).id &&
+        request.auth.uid in getAfter(/databases/$(database)/documents/slots/$(request.resource.data.slotId)).data.bookedUids;
+      allow update: if false;
+      allow delete: if signedIn() && request.auth.uid == uid &&
+        !existsAfter(/databases/$(database)/documents/reservations/$(uid));
+    }
+
+    match /cancellations/{id} {
+      allow create: if isStudent() && request.resource.data.uid == request.auth.uid &&
+        request.resource.data.reason is string && request.resource.data.reason.size() >= 10;
+      allow read: if isAdmin() || (isTeacher() && resource.data.uid == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    match /teacherRequests/{id} {
+      allow create: if isStudent() && request.resource.data.studentUid == request.auth.uid &&
+        request.resource.data.reason is string && request.resource.data.reason.size() >= 10;
+      allow read: if isAdmin() || (isTeacher() && resource.data.status == "open") ||
+        (signedIn() && resource.data.studentUid == request.auth.uid);
+      allow update: if isAdmin() || (isTeacher() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "assignedTeacherUid"]) && resource.data.status == "open");
+      allow delete: if isAdmin();
+    }
+
+    match /feedback/{id} {
+      allow create: if isTeacher() &&
+        request.resource.data.teacherUid == request.auth.uid &&
+        request.resource.data.studentUid is string &&
+        request.resource.data.score is number &&
+        request.resource.data.score >= 0 && request.resource.data.score <= 100 &&
+        request.resource.data.feedback is string;
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.studentUid == request.auth.uid) ||
+        (isTeacher() && resource.data.teacherUid == request.auth.uid);
+      allow update, delete: if isAdmin() || (isTeacher() && resource.data.teacherUid == request.auth.uid);
+    }
+
+    match /chats/{chatId} {
+      allow create: if hasProfile() &&
+        request.resource.data.createdBy == request.auth.uid &&
+        request.auth.uid in request.resource.data.memberUids &&
+        request.resource.data.memberUids is list &&
+        request.resource.data.memberUids.size() >= 2 &&
+        request.resource.data.memberUids.size() <= 50 &&
+        request.resource.data.type in ["private", "group", "faculty"] &&
+        (request.resource.data.type != "faculty" || isTeacher());
+      allow read: if signedIn() && request.auth.uid in resource.data.memberUids;
+      allow update: if signedIn() && request.auth.uid in resource.data.memberUids &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(["updatedAt"]);
+      allow delete: if isAdmin() || (signedIn() && resource.data.createdBy == request.auth.uid);
+      match /messages/{messageId} {
+        function parentChat() { return get(/databases/$(database)/documents/chats/$(chatId)).data; }
+        allow read: if signedIn() && request.auth.uid in parentChat().memberUids;
+        allow create: if signedIn() && request.auth.uid in parentChat().memberUids &&
+          request.resource.data.senderUid == request.auth.uid &&
+          request.resource.data.text is string &&
+          request.resource.data.text.size() > 0 &&
+          request.resource.data.text.size() <= 2000;
+        allow update, delete: if isAdmin();
+      }
+    }
+
+    match /listings/{listingId} {
+      allow read: if hasProfile() && resource.data.status == "active";
+      allow create: if isStudent() && request.resource.data.ownerUid == request.auth.uid &&
+        request.resource.data.status == "active" &&
+        request.resource.data.title is string && request.resource.data.title.size() > 0 &&
+        request.resource.data.details is string && request.resource.data.details.size() >= 5;
+      allow update: if isAdmin() ||
+        (isStudent() && resource.data.ownerUid == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status"]) &&
+          request.resource.data.status == "removed");
+      allow delete: if isAdmin();
+    }
+
+    match /facultyPosts/{postId} {
+      allow read: if isTeacher();
+      allow create: if isTeacher() && request.resource.data.authorUid == request.auth.uid &&
+        request.resource.data.topic is string && request.resource.data.topic.size() > 0 &&
+        request.resource.data.body is string && request.resource.data.body.size() >= 10;
+      allow update, delete: if isAdmin() || (isTeacher() && resource.data.authorUid == request.auth.uid);
+    }
+  }
+}
