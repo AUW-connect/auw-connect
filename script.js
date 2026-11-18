@@ -8,6 +8,19 @@ const supabaseClient = window.supabase.createClient(
   SUPABASE_PUBLISHABLE_KEY
 );
 
+supabaseClient
+  .from('profiles')
+  .select('id')
+  .limit(1)
+  .then(({ data, error }) => {
+    if (error) {
+      console.error('Supabase connection error:', error.message);
+    } else {
+      console.log('Supabase connected successfully!');
+    }
+  });
+
+
 // AUW Connect - beginner-friendly front-end prototype.
 // Data is saved in localStorage, so it stays in this browser only.
 const STORAGE_KEY = 'auwConnectStudentProjectV2';
