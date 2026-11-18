@@ -1,4 +1,12 @@
+// Supabase connection
+const SUPABASE_URL = 'https://xvovsxigkhgmstlnwsvj.supabase.co';
 
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_jgzjUWcoNNtvSUxPLgkkvA_xHxnz12d';
+
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY
+);
 
 // AUW Connect - beginner-friendly front-end prototype.
 // Data is saved in localStorage, so it stays in this browser only.
