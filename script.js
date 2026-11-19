@@ -1400,6 +1400,34 @@ function appointmentFromRow(row, slotMap) {
   const statusMap = { pending:'Pending', approved:'Approved', declined:'Declined', cancelled:'Cancelled', completed:'Completed' };
   return { id: row.id, studentId: row.student_id, facultyId: row.faculty_id, officeHourId: row.office_hour_id, date: slot?.date || '', time: slot?.time || '', reason: row.student_note || row.topic || 'Office-hour appointment', status: statusMap[String(row.status || 'pending').toLowerCase()] || row.status || 'Pending', facultyNote: row.faculty_note || '', createdAt: row.created_at };
 }
+function isDatabaseUUID(value) { return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || '')); }
+async function syncOfficeHourNotifications(showErrors = false) {
+  const me = currentUser();
+  if (!me?.id) return false;
+  try {
+    const { data: rows, error } = await supabaseClient.from('notifications')
+      .select('id, user_id, title, body, read_at, created_at')
+      .eq('user_id', me.id).order('created_at', { ascending: false }).limit(100);
+    if (error) throw error;
+    // Keep existing browser-only notifications from unrelated portal features;
+    // replace only database-backed notifications with the shared Supabase rows.
+    const localOnly = (data.notifications || []).filter(n => n.userId === me.id && !isDatabaseUUID(n.id));
+    const shared = (rows || []).map(row => ({
+      id: row.id, userId: row.user_id, actorId: null,
+      title: row.title || 'AUW Connect update', message: row.body || '',
+      type: 'office-hour', relatedId: '', createdAt: row.created_at,
+      read: !!row.read_at, readAt: row.read_at || null
+    }));
+    data.notifications = [...shared, ...localOnly].sort((a,b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+    updateNotificationBadge();
+    if ($('#view-notifications')?.classList.contains('active')) renderNotifications();
+    return true;
+  } catch (error) {
+    console.error('Shared notification sync failed:', error);
+    if (showErrors) showToast(`Notifications could not load: ${error.message || 'Check Supabase permissions.'}`);
+    return false;
+  }
+}
 async function syncOfficeHourData(showErrors = false) {
   const me = currentUser();
   if (!me?.id) return false;
@@ -1417,6 +1445,7 @@ async function syncOfficeHourData(showErrors = false) {
     const { data: appointmentRows, error: appointmentError } = await appointmentQuery.order('created_at', { ascending: false });
     if (appointmentError) throw appointmentError;
     data.appointments = (appointmentRows || []).map(row => appointmentFromRow(row, slotMap));
+    await syncOfficeHourNotifications(false);
     saveData();
     return true;
   } catch (error) {
@@ -2633,20 +2662,20 @@ function setupEvents() {
   document.addEventListener('change', event => { if (['bookingFaculty','bookingDate'].includes(event.target.id)) renderAppointments(); });
   document.addEventListener('click', event => {
     const markRead = event.target.closest('[data-read-notification]');
-    if (markRead) { const item = data.notifications.find(n => n.id === markRead.dataset.readNotification && n.userId === currentUser().id); if (item) { item.read = true; saveData(); renderNotifications(); } return; }
+    if (markRead) { const item = data.notifications.find(n => n.id === markRead.dataset.readNotification && n.userId === currentUser().id); if (item) { (async()=>{ if (isDatabaseUUID(item.id)) { const readAt = new Date().toISOString(); const {error} = await supabaseClient.from('notifications').update({read_at:readAt}).eq('id',item.id).eq('user_id',currentUser().id); if(error)return showToast(`Could not mark notification as read: ${error.message}`); item.readAt=readAt; } item.read = true; saveData(); renderNotifications(); })(); } return; }
     const markAll = event.target.closest('#markAllNotificationsRead');
-    if (markAll) { data.notifications.filter(n => n.userId === currentUser().id).forEach(n => n.read = true); saveData(); renderNotifications(); return; }
+    if (markAll) { (async()=>{ const me=currentUser(); const {error}=await supabaseClient.from('notifications').update({read_at:new Date().toISOString()}).eq('user_id',me.id).is('read_at',null); if(error)return showToast(`Could not update shared notifications: ${error.message}`); data.notifications.filter(n=>n.userId===me.id).forEach(n=>{n.read=true;}); saveData(); await syncOfficeHourNotifications(false); renderNotifications(); })(); return; }
     const addSlot=event.target.closest('#addOfficeSlot'); if(addSlot){const wrap=$('#officeSlotInputs');if(wrap){const count=wrap.querySelectorAll('.office-slot-row').length+1;const row=document.createElement('div');row.className='form-row office-slot-row';row.innerHTML=`<label>Time slot ${count}<input type="time" class="office-slot-time" required></label><button class="button button-outline" type="button" data-remove-office-slot>Remove</button>`;wrap.appendChild(row);} }
     const removeSlot=event.target.closest('[data-remove-office-slot]'); if(removeSlot){const row=removeSlot.closest('.office-slot-row');if(row&&$('#officeSlotInputs').querySelectorAll('.office-slot-row').length>1){row.remove();$('#officeSlotInputs').querySelectorAll('.office-slot-row label').forEach((label,index)=>{label.childNodes[0].textContent=`Time slot ${index+1}`;});}}
     const book=event.target.closest('[data-book-faculty]'); if(book){ goTo('office-booking'); setTimeout(()=>{const sel=$('#bookingFaculty'); if(sel){sel.value=book.dataset.bookFaculty;renderAppointments();}},0); }
-    const cancel=event.target.closest('[data-cancel-appointment]'); if(cancel){(async()=>{const a=data.appointments.find(x=>x.id===cancel.dataset.cancelAppointment);if(!a||a.studentId!==currentUser().id||!['Pending','Approved'].includes(a.status))return;const {error}=await supabaseClient.from('appointments').update({status:'cancelled'}).eq('id',a.id).eq('student_id',currentUser().id);if(error)return showToast(`Could not cancel: ${error.message}`);await supabaseClient.from('office_hours').update({is_available:true}).eq('id',a.officeHourId);await syncOfficeHourData(false);renderAppointments();showToast('Appointment cancelled.');})();}
+    const cancel=event.target.closest('[data-cancel-appointment]'); if(cancel){(async()=>{const a=data.appointments.find(x=>x.id===cancel.dataset.cancelAppointment);if(!a||a.studentId!==currentUser().id||!['Pending','Approved'].includes(a.status))return;const {error}=await supabaseClient.rpc('cancel_office_hour_appointment',{p_appointment_id:a.id});if(error)return showToast(`Could not cancel: ${error.message}`);await syncOfficeHourData(false);renderAppointments();showToast('Appointment cancelled. The faculty member has been notified.');})();}
     const res=event.target.closest('[data-reschedule-appointment]'); if(res){showToast('Please cancel this request and book another available time.');}
-    const action=event.target.closest('[data-appointment-action]'); if(action&&currentUser().role==='Teacher'){(async()=>{const a=data.appointments.find(x=>x.id===action.dataset.appointmentId&&x.facultyId===currentUser().id);if(!a)return;const status=action.dataset.appointmentAction.toLowerCase();const {error}=await supabaseClient.from('appointments').update({status}).eq('id',a.id).eq('faculty_id',currentUser().id);if(error)return showToast(`Could not update appointment: ${error.message}`);if(['declined','cancelled'].includes(status)&&a.officeHourId)await supabaseClient.from('office_hours').update({is_available:true}).eq('id',a.officeHourId);await syncOfficeHourData(false);renderAppointments();showToast(`Appointment marked ${status}.`);})();}
+    const action=event.target.closest('[data-appointment-action]'); if(action&&currentUser().role==='Teacher'){(async()=>{const a=data.appointments.find(x=>x.id===action.dataset.appointmentId&&x.facultyId===currentUser().id);if(!a)return;const status=action.dataset.appointmentAction.toLowerCase();let result;if(['approved','declined'].includes(status)){result=await supabaseClient.rpc('respond_to_office_hour_appointment',{p_appointment_id:a.id,p_status:status,p_faculty_note:''});}else{result=await supabaseClient.from('appointments').update({status}).eq('id',a.id).eq('faculty_id',currentUser().id);}if(result.error)return showToast(`Could not update appointment: ${result.error.message}`);if(status==='cancelled'&&a.officeHourId)await supabaseClient.from('office_hours').update({is_available:true}).eq('id',a.officeHourId);await syncOfficeHourData(false);renderAppointments();showToast(`Appointment marked ${status}.${['approved','declined'].includes(status)?' The student has been notified.':''}`);})();}
     const del=event.target.closest('[data-delete-office-slot]'); if(del&&currentUser().role==='Teacher'){(async()=>{const slot=data.officeHours.find(x=>x.id===del.dataset.deleteOfficeSlot&&x.facultyId===currentUser().id);if(!slot||slot.isAvailable===false)return;const {error}=await supabaseClient.from('office_hours').delete().eq('id',slot.id).eq('faculty_id',currentUser().id).eq('is_available',true);if(error)return showToast(`Could not remove slot: ${error.message}`);await syncOfficeHourData(false);renderAppointments();showToast('Availability slot removed.');})();}
   });
   document.addEventListener('submit', event => {
     if(event.target.id==='officeHourForm'){event.preventDefault();(async()=>{if(currentUser().role!=='Teacher')return;const date=$('#officeDate').value,inputs=[...document.querySelectorAll('#officeSlotInputs .office-slot-time')],times=inputs.map(input=>input.value);if(!date||date<localDateISO())return showToast('Choose today or a future date.');if(times.some(time=>!time))return showToast('Please complete every time slot or remove the empty row.');if(times.some(time=>timeToMinutes(time)%15!==0))return showToast('Every appointment must start on a 15-minute boundary (00, 15, 30 or 45).');if(new Set(times).size!==times.length)return showToast('Please remove duplicate times.');let added=0;for(const time of times){const startsAt=officeSlotStart(date,time);const endsAt=new Date(new Date(startsAt).getTime()+15*60000).toISOString();const {data:existing,error:checkError}=await supabaseClient.from('office_hours').select('id').eq('faculty_id',currentUser().id).eq('starts_at',startsAt).maybeSingle();if(checkError)return showToast(`Could not check existing slots: ${checkError.message}`);if(existing)continue;const {error}=await supabaseClient.from('office_hours').insert({faculty_id:currentUser().id,starts_at:startsAt,ends_at:endsAt,is_available:true});if(error)return showToast(`Could not publish slot: ${error.message}`);added++;}await syncOfficeHourData(false);renderAppointments();showToast(`${added} available slot(s) published to AUW Connect.`);})();}
-    if(event.target.id==='studentAppointmentForm'){event.preventDefault();(async()=>{if(currentUser().role!=='Student')return;const facultyId=$('#bookingFaculty').value,date=$('#bookingDate').value,time=$('#bookingTime').value,reason=$('#bookingReason').value.trim();if(reason.length<8)return showToast('Please enter at least 8 characters for the reason.');const slot=availableSlots(facultyId,date).find(s=>s.time===time);if(!slot)return showToast('That slot is no longer available. Refresh and choose another.');const {data:reserved,error:reserveError}=await supabaseClient.from('office_hours').update({is_available:false}).eq('id',slot.id).eq('is_available',true).select('id').maybeSingle();if(reserveError)return showToast(`Could not reserve this slot: ${reserveError.message}`);if(!reserved)return showToast('Someone has just booked that slot. Please choose another.');const {error}=await supabaseClient.from('appointments').insert({office_hour_id:slot.id,faculty_id:facultyId,student_id:currentUser().id,topic:'Office-hour appointment',student_note:reason,status:'pending'});if(error){await supabaseClient.from('office_hours').update({is_available:true}).eq('id',slot.id);return showToast(`Booking could not be saved: ${error.message}`);}await syncOfficeHourData(false);renderAppointments();showToast('Your appointment request has been sent to the faculty member.');})();}
+    if(event.target.id==='studentAppointmentForm'){event.preventDefault();(async()=>{if(currentUser().role!=='Student')return;const facultyId=$('#bookingFaculty').value,date=$('#bookingDate').value,time=$('#bookingTime').value,reason=$('#bookingReason').value.trim();if(reason.length<8)return showToast('Please enter at least 8 characters for the reason.');const slot=availableSlots(facultyId,date).find(s=>s.time===time);if(!slot)return showToast('That slot is no longer available. Refresh and choose another.');const {data:appointmentId,error:bookingError}=await supabaseClient.rpc('book_office_hour',{p_office_hour_id:slot.id,p_topic:'Office-hour appointment',p_student_note:reason});if(bookingError)return showToast(`Booking could not be saved: ${bookingError.message}`);if(!appointmentId)return showToast('The booking could not be confirmed. Please refresh and try again.');await syncOfficeHourData(false);renderAppointments();showToast('Your appointment request has been sent to the faculty member.');})();}
   });
 }
 
@@ -2703,7 +2732,7 @@ function startApp() {
     }
   });
   checkAppointmentReminders();
-  window.setInterval(() => { if (data.currentUserId) { updateMyPresence(); renderPresence(); checkAppointmentReminders(); } }, 15000);
+  window.setInterval(() => { if (data.currentUserId) { updateMyPresence(); renderPresence(); checkAppointmentReminders(); syncOfficeHourNotifications(false); } }, 15000);
   // Attach controls before rendering dashboard data. Navigation remains available
   // even if an old or incomplete localStorage record causes a rendering issue.
   setupThemeToggle();
@@ -2716,6 +2745,31 @@ function startApp() {
     showToast('Some saved information could not be displayed. Navigation is still available; please refresh the page.');
   }
 }
-initializeSupabaseAuth().finally(() => startApp());
+// Start the interface immediately so navigation and auth controls are clickable
+// even while Supabase restores the session or loads shared office-hour data.
+document.body.classList.add('logged-out');
+$('#authModal')?.classList.remove('hidden');
+startApp();
+
+// Restore authentication in the background; do not hold up event registration.
+initializeSupabaseAuth()
+  .then(() => {
+    if (data.currentUserId && !document.body.classList.contains('logged-out')) {
+      try {
+        renderAll();
+        renderCurrentView('overview');
+      } catch (error) {
+        console.error('AUW Connect post-login rendering error:', error);
+        showToast('Your account loaded, but some dashboard information could not be displayed. Please refresh.');
+      }
+    }
+  })
+  .catch(error => {
+    console.error('AUW Connect authentication initialization failed:', error);
+    data.currentUserId = '';
+    document.body.classList.add('logged-out');
+    $('#authModal')?.classList.remove('hidden');
+    showToast('Could not connect to Supabase. Check your internet connection and refresh the page.');
+  });
 
 
